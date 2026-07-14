@@ -1,0 +1,856 @@
+<title>家計簿（試作）</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f6f5f1;
+    --surface: #fcfcfb;
+    --ink: #181713;
+    --ink2: #52514e;
+    --muted: #898781;
+    --line: #e1e0d9;
+    --baseline: #c3c2b7;
+    --accent: #1c5cab;
+    --accent-ink: #ffffff;
+    --in: #2a78d6;
+    --ex: #e34948;
+    --good: #006300;
+    --bad: #b02f2f;
+    --ring: rgba(11,11,11,0.10);
+    --c1: #2a78d6; --c2: #1baf7a; --c3: #eda100; --c4: #008300;
+    --c5: #4a3aa7; --c6: #e34948; --c7: #e87ba4; --c8: #eb6834;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --bg: #0d0d0d;
+      --surface: #1a1a19;
+      --ink: #ffffff;
+      --ink2: #c3c2b7;
+      --muted: #898781;
+      --line: #2c2c2a;
+      --baseline: #383835;
+      --accent: #3987e5;
+      --accent-ink: #0d0d0d;
+      --in: #3987e5;
+      --ex: #e66767;
+      --good: #0ca30c;
+      --bad: #e66767;
+      --ring: rgba(255,255,255,0.10);
+      --c1: #3987e5; --c2: #199e70; --c3: #c98500; --c4: #008300;
+      --c5: #9085e9; --c6: #e66767; --c7: #d55181; --c8: #d95926;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --ink2: #c3c2b7;
+    --muted: #898781;
+    --line: #2c2c2a;
+    --baseline: #383835;
+    --accent: #3987e5;
+    --accent-ink: #0d0d0d;
+    --in: #3987e5;
+    --ex: #e66767;
+    --good: #0ca30c;
+    --bad: #e66767;
+    --ring: rgba(255,255,255,0.10);
+    --c1: #3987e5; --c2: #199e70; --c3: #c98500; --c4: #008300;
+    --c5: #9085e9; --c6: #e66767; --c7: #d55181; --c8: #d95926;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", Meiryo, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 0 16px; }
+
+  header.app {
+    padding: 18px 16px 10px;
+    max-width: 560px; margin: 0 auto;
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  }
+  header.app h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: .04em; }
+  header.app .proto {
+    font-size: 11px; color: var(--muted); letter-spacing: .12em; font-weight: 600;
+  }
+
+  /* month nav */
+  .monthnav {
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    margin: 4px 0 14px;
+  }
+  .monthnav button {
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink2);
+    width: 36px; height: 36px; border-radius: 10px; font-size: 16px; cursor: pointer;
+  }
+  .monthnav .label {
+    min-width: 130px; text-align: center; font-weight: 700; font-size: 16px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--ring);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .card h2 {
+    margin: 0 0 12px; font-size: 12px; font-weight: 700;
+    letter-spacing: .1em; color: var(--ink2);
+  }
+
+  /* segmented control */
+  .seg { display: flex; gap: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button {
+    flex: 1; padding: 9px 0; border: 0; background: transparent; color: var(--ink2);
+    font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .seg button.on-ex { background: var(--ex); color: #fff; }
+  .seg button.on-in { background: var(--in); color: #fff; }
+
+  form .row { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+  form label { font-size: 12px; font-weight: 600; color: var(--ink2); letter-spacing: .04em; }
+  input[type="text"], input[type="date"], input[type="number"], select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 16px;
+    font-family: inherit;
+  }
+  input:focus-visible, select:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 1px;
+  }
+  .amount-input { position: relative; }
+  .amount-input input { padding-left: 34px; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 20px; }
+  .amount-input .yen { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 16px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink2);
+    border-radius: 999px; padding: 6px 13px; font-size: 13px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .chip[aria-pressed="true"] { border-color: var(--accent); color: var(--ink); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); font-weight: 700; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    border: 0; border-radius: 12px; padding: 12px 18px;
+    font-size: 15px; font-weight: 700; font-family: inherit; cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); width: 100%; margin-top: 18px; }
+  .btn-ghost {
+    background: transparent; border: 1px solid var(--line); color: var(--ink2);
+    font-weight: 600; font-size: 13px; padding: 8px 14px;
+  }
+
+  /* stat tiles */
+  .tiles { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .tile {
+    background: var(--surface); border: 1px solid var(--ring); border-radius: 14px;
+    padding: 12px 12px 10px;
+  }
+  .tile .k { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .tile .k .sw { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+  .tile .v { font-size: 19px; font-weight: 700; margin-top: 2px; white-space: nowrap; }
+  .tile .v.pos { color: var(--good); }
+  .tile .v.neg { color: var(--bad); }
+
+  /* entries list */
+  .daygroup { margin-bottom: 4px; }
+  .daygroup .dh {
+    font-size: 12px; font-weight: 700; color: var(--muted);
+    padding: 10px 2px 4px; letter-spacing: .04em;
+  }
+  .entry {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--ring); border-radius: 12px;
+    padding: 10px 12px; margin-bottom: 6px;
+  }
+  .entry .cdot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .entry .body { flex: 1; min-width: 0; }
+  .entry .cat { font-size: 14px; font-weight: 600; }
+  .entry .memo { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .entry .amt { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 15px; white-space: nowrap; }
+  .entry .amt.in { color: var(--in); }
+  .entry .del {
+    border: 0; background: transparent; color: var(--muted); cursor: pointer;
+    font-size: 16px; padding: 4px 6px; border-radius: 8px; flex: none;
+  }
+  .entry .del:hover { color: var(--bad); }
+  .badge-auto {
+    font-size: 10px; font-weight: 700; color: var(--accent);
+    border: 1px solid currentColor; border-radius: 999px; padding: 0 6px; margin-left: 6px;
+    letter-spacing: .06em; vertical-align: 1px;
+  }
+
+  .empty { text-align: center; color: var(--muted); padding: 28px 8px; font-size: 14px; }
+
+  /* charts */
+  .chart-wrap { overflow-x: auto; }
+  svg text { font-family: inherit; }
+  .legend { display: flex; gap: 16px; align-items: center; margin: 2px 0 10px; flex-wrap: wrap; }
+  .legend .li { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink2); font-weight: 600; }
+  .legend .sw { width: 10px; height: 10px; border-radius: 3px; }
+
+  .tooltip {
+    position: fixed; z-index: 30; pointer-events: none;
+    background: var(--surface); color: var(--ink);
+    border: 1px solid var(--ring); border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    padding: 8px 11px; font-size: 12px; line-height: 1.5;
+    max-width: 220px; display: none;
+  }
+  .tooltip .t { font-weight: 700; margin-bottom: 2px; }
+  .tooltip .r { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+  .tooltip .sw { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+
+  /* recurring */
+  .rec {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--ring); border-radius: 12px;
+    padding: 10px 12px; margin-bottom: 6px;
+  }
+  .rec .body { flex: 1; }
+  .rec .name { font-weight: 700; font-size: 14px; }
+  .rec .sub { font-size: 12px; color: var(--muted); }
+
+  /* receipt */
+  .receipt-preview { max-width: 100%; max-height: 220px; border-radius: 10px; display: block; margin: 10px auto 0; }
+  .ocr-note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .ocr-cands { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+  /* tabs */
+  nav.tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  nav.tabs .inner { max-width: 560px; margin: 0 auto; display: flex; }
+  nav.tabs button {
+    flex: 1; border: 0; background: transparent; cursor: pointer;
+    padding: 8px 0 9px; color: var(--muted); font-family: inherit;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    font-size: 11px; font-weight: 600;
+  }
+  nav.tabs button .ic { font-size: 18px; line-height: 1.2; }
+  nav.tabs button[aria-selected="true"] { color: var(--accent); }
+
+  .toast {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    background: var(--ink); color: var(--bg);
+    border-radius: 999px; padding: 8px 18px; font-size: 13px; font-weight: 600;
+    z-index: 40; opacity: 0; transition: opacity .25s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: .95; }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+  .foot { color: var(--muted); font-size: 11px; text-align: center; padding: 8px 0 4px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+</style>
+
+<header class="app">
+  <h1>家計簿</h1>
+  <span class="proto">PROTOTYPE</span>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ 入力 ============ -->
+  <section id="panel-input" class="panel active">
+    <div class="card">
+      <h2>収支を記録</h2>
+      <div class="seg" role="group" aria-label="種別">
+        <button type="button" id="segEx" class="on-ex">支出</button>
+        <button type="button" id="segIn">収入</button>
+      </div>
+      <form id="entryForm">
+        <div class="row">
+          <label for="fAmount">金額</label>
+          <div class="amount-input">
+            <span class="yen">¥</span>
+            <input id="fAmount" type="number" inputmode="numeric" min="1" step="1" placeholder="0" required>
+          </div>
+        </div>
+        <div class="row">
+          <label for="fDate">日付</label>
+          <input id="fDate" type="date" required>
+        </div>
+        <div class="row">
+          <label>カテゴリ</label>
+          <div class="chips" id="catChips"></div>
+        </div>
+        <div class="row">
+          <label for="fMemo">メモ（任意）</label>
+          <input id="fMemo" type="text" placeholder="例：スーパーで買い物" maxlength="60">
+        </div>
+        <button type="submit" class="btn btn-primary">記録する</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>レシート読取</h2>
+      <label class="btn btn-ghost" style="width:100%;">
+        📷 レシートを撮影・選択
+        <input id="receiptFile" type="file" accept="image/*" capture="environment" hidden>
+      </label>
+      <img id="receiptImg" class="receipt-preview" alt="レシートのプレビュー" hidden>
+      <div class="ocr-cands" id="ocrCands"></div>
+      <p class="ocr-note" id="ocrNote">写真から金額の候補を読み取り、上のフォームに反映します（試作版：端末が文字認識に対応している場合のみ。非対応の端末では写真を見ながら手入力してください）。</p>
+    </div>
+  </section>
+
+  <!-- ============ 一覧 ============ -->
+  <section id="panel-list" class="panel">
+    <div class="monthnav">
+      <button type="button" data-mnav="-1" aria-label="前の月">‹</button>
+      <span class="label" data-mlabel></span>
+      <button type="button" data-mnav="1" aria-label="次の月">›</button>
+    </div>
+    <div class="tiles" id="listTiles"></div>
+    <div id="entryList"></div>
+  </section>
+
+  <!-- ============ 集計 ============ -->
+  <section id="panel-stats" class="panel">
+    <div class="monthnav">
+      <button type="button" data-mnav="-1" aria-label="前の月">‹</button>
+      <span class="label" data-mlabel></span>
+      <button type="button" data-mnav="1" aria-label="次の月">›</button>
+    </div>
+    <div class="tiles" id="statTiles"></div>
+
+    <div class="card">
+      <h2>カテゴリ別支出</h2>
+      <div class="chart-wrap" id="catChart"></div>
+    </div>
+
+    <div class="card">
+      <h2>収支の推移（6ヶ月）</h2>
+      <div class="legend">
+        <span class="li"><span class="sw" style="background:var(--in)"></span>収入</span>
+        <span class="li"><span class="sw" style="background:var(--ex)"></span>支出</span>
+      </div>
+      <div class="chart-wrap" id="trendChart"></div>
+    </div>
+  </section>
+
+  <!-- ============ 定期 ============ -->
+  <section id="panel-rec" class="panel">
+    <div class="card">
+      <h2>定期的な収支</h2>
+      <p style="margin:0 0 10px; font-size:13px; color:var(--ink2);">家賃やサブスク、給料など毎月決まった収支を登録すると、その日が来たとき自動で記録されます（アプリを開いたタイミングで計上）。</p>
+      <div id="recList"></div>
+      <form id="recForm">
+        <div class="row">
+          <label for="rName">名前</label>
+          <input id="rName" type="text" placeholder="例：家賃" required maxlength="30">
+        </div>
+        <div class="row">
+          <label>種別</label>
+          <div class="seg" role="group" aria-label="種別">
+            <button type="button" id="rSegEx" class="on-ex">支出</button>
+            <button type="button" id="rSegIn">収入</button>
+          </div>
+        </div>
+        <div class="row">
+          <label for="rAmount">金額</label>
+          <div class="amount-input">
+            <span class="yen">¥</span>
+            <input id="rAmount" type="number" inputmode="numeric" min="1" step="1" placeholder="0" required>
+          </div>
+        </div>
+        <div class="row">
+          <label for="rCat">カテゴリ</label>
+          <select id="rCat"></select>
+        </div>
+        <div class="row">
+          <label for="rDay">毎月の日にち</label>
+          <select id="rDay"></select>
+        </div>
+        <button type="submit" class="btn btn-primary">定期収支を追加</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>試作用</h2>
+      <button type="button" class="btn btn-ghost" id="seedBtn" style="width:100%;">サンプルデータを入れる（3ヶ月分）</button>
+      <button type="button" class="btn btn-ghost" id="clearBtn" style="width:100%; margin-top:8px;">すべてのデータを消す</button>
+      <p class="ocr-note">データはこの端末のブラウザ内（localStorage）にのみ保存されます。</p>
+    </div>
+  </section>
+
+  <p class="foot">家計簿 試作版 — データは端末内に保存</p>
+</main>
+
+<nav class="tabs" aria-label="メイン">
+  <div class="inner">
+    <button data-tab="input" aria-selected="true"><span class="ic">✏️</span>入力</button>
+    <button data-tab="list" aria-selected="false"><span class="ic">📋</span>一覧</button>
+    <button data-tab="stats" aria-selected="false"><span class="ic">📊</span>集計</button>
+    <button data-tab="rec" aria-selected="false"><span class="ic">🔁</span>定期</button>
+  </div>
+</nav>
+
+<div class="tooltip" id="tooltip"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- data ----------
+  const KEY = 'kakeibo-proto-v1';
+  const EX_CATS = ['食費','日用品','交通','住居','光熱費','通信','娯楽','医療','その他'];
+  const IN_CATS = ['給与','副収入','その他'];
+  // fixed categorical slot per expense category; その他 stays neutral gray
+  const CAT_COLOR = {
+    '食費':'var(--c1)','日用品':'var(--c2)','交通':'var(--c3)','住居':'var(--c4)',
+    '光熱費':'var(--c5)','通信':'var(--c6)','娯楽':'var(--c7)','医療':'var(--c8)',
+    'その他':'var(--muted)'
+  };
+
+  let db = load();
+  function load() {
+    try {
+      const d = JSON.parse(localStorage.getItem(KEY));
+      if (d && Array.isArray(d.entries)) return { entries: d.entries, recurring: d.recurring || [], posted: d.posted || {} };
+    } catch (e) {}
+    return { entries: [], recurring: [], posted: {} };
+  }
+  function save() { localStorage.setItem(KEY, JSON.stringify(db)); }
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+  // ---------- date helpers ----------
+  const pad = n => String(n).padStart(2, '0');
+  const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+  const ymOf = date => date.slice(0, 7);
+  let viewYM = ymOf(today());
+  const ymLabel = ym => `${+ym.slice(0,4)}年${+ym.slice(5,7)}月`;
+  function shiftYM(ym, n) {
+    const d = new Date(+ym.slice(0,4), +ym.slice(5,7)-1 + n, 1);
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
+  }
+  const daysInYM = ym => new Date(+ym.slice(0,4), +ym.slice(5,7), 0).getDate();
+  const yen = n => '¥' + Math.round(n).toLocaleString('ja-JP');
+
+  // ---------- recurring auto-post ----------
+  function autoPost() {
+    const t = today(), ym = ymOf(t), dayNow = +t.slice(8,10);
+    let n = 0;
+    for (const r of db.recurring) {
+      const key = r.id + '-' + ym;
+      const day = Math.min(r.day, daysInYM(ym));
+      if (day <= dayNow && !db.posted[key]) {
+        db.entries.push({ id: uid(), date: `${ym}-${pad(day)}`, type: r.type, amount: r.amount, cat: r.cat, memo: r.name, auto: true });
+        db.posted[key] = true;
+        n++;
+      }
+    }
+    if (n) { save(); toast(`定期収支を${n}件 自動記録しました`); }
+  }
+
+  // ---------- toast ----------
+  let toastTimer;
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+  }
+
+  // ---------- tabs ----------
+  const panels = { input: 'panel-input', list: 'panel-list', stats: 'panel-stats', rec: 'panel-rec' };
+  document.querySelectorAll('nav.tabs button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('nav.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(panels[b.dataset.tab]).classList.add('active');
+      hideTip();
+      render();
+      window.scrollTo(0, 0);
+    });
+  });
+
+  // ---------- month nav (shared) ----------
+  document.querySelectorAll('[data-mnav]').forEach(b => {
+    b.addEventListener('click', () => { viewYM = shiftYM(viewYM, +b.dataset.mnav); render(); });
+  });
+
+  // ---------- entry form ----------
+  let fType = 'ex';
+  let fCat = EX_CATS[0];
+  const segEx = document.getElementById('segEx'), segIn = document.getElementById('segIn');
+  function setType(t) {
+    fType = t;
+    segEx.className = t === 'ex' ? 'on-ex' : '';
+    segIn.className = t === 'in' ? 'on-in' : '';
+    fCat = (t === 'ex' ? EX_CATS : IN_CATS)[0];
+    renderChips();
+  }
+  segEx.addEventListener('click', () => setType('ex'));
+  segIn.addEventListener('click', () => setType('in'));
+
+  function renderChips() {
+    const box = document.getElementById('catChips');
+    box.innerHTML = '';
+    for (const c of (fType === 'ex' ? EX_CATS : IN_CATS)) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.setAttribute('aria-pressed', c === fCat);
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.style.background = fType === 'ex' ? (CAT_COLOR[c] || 'var(--muted)') : 'var(--in)';
+      b.append(dot, document.createTextNode(c));
+      b.addEventListener('click', () => { fCat = c; renderChips(); });
+      box.appendChild(b);
+    }
+  }
+
+  document.getElementById('fDate').value = today();
+  document.getElementById('entryForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const amount = +document.getElementById('fAmount').value;
+    const date = document.getElementById('fDate').value;
+    if (!amount || amount <= 0 || !date) return;
+    db.entries.push({ id: uid(), date, type: fType, amount, cat: fCat, memo: document.getElementById('fMemo').value.trim() });
+    save();
+    document.getElementById('fAmount').value = '';
+    document.getElementById('fMemo').value = '';
+    clearReceipt();
+    toast('記録しました');
+    render();
+  });
+
+  // ---------- receipt ----------
+  const receiptFile = document.getElementById('receiptFile');
+  const receiptImg = document.getElementById('receiptImg');
+  const ocrCands = document.getElementById('ocrCands');
+  const ocrNote = document.getElementById('ocrNote');
+  function clearReceipt() {
+    receiptImg.hidden = true;
+    if (receiptImg.src) URL.revokeObjectURL(receiptImg.src);
+    receiptImg.removeAttribute('src');
+    ocrCands.innerHTML = '';
+    receiptFile.value = '';
+  }
+  receiptFile.addEventListener('change', async () => {
+    const f = receiptFile.files && receiptFile.files[0];
+    if (!f) return;
+    receiptImg.src = URL.createObjectURL(f);
+    receiptImg.hidden = false;
+    ocrCands.innerHTML = '';
+    if (!('TextDetector' in window)) {
+      ocrNote.textContent = 'この端末のブラウザは文字認識（TextDetector）に未対応です。写真を見ながら金額を手入力してください。※正式版ではOCRライブラリの組み込みを検討';
+      return;
+    }
+    ocrNote.textContent = '読み取り中…';
+    try {
+      const bmp = await createImageBitmap(f);
+      const det = new TextDetector();
+      const found = await det.detect(bmp);
+      const nums = new Set();
+      for (const t of found) {
+        for (const m of (t.rawValue.match(/[0-9,，]{2,}/g) || [])) {
+          const v = +m.replace(/[,，]/g, '');
+          if (v >= 10 && v < 10000000) nums.add(v);
+        }
+      }
+      const cand = [...nums].sort((a, b) => b - a).slice(0, 6);
+      if (!cand.length) { ocrNote.textContent = '金額を読み取れませんでした。手入力してください。'; return; }
+      ocrNote.textContent = '読み取った金額の候補（タップでフォームに反映）:';
+      for (const v of cand) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'chip'; b.textContent = yen(v);
+        b.addEventListener('click', () => {
+          document.getElementById('fAmount').value = v;
+          toast('金額を反映しました');
+          window.scrollTo({ top: 0 });
+        });
+        ocrCands.appendChild(b);
+      }
+    } catch (err) {
+      ocrNote.textContent = '読み取りに失敗しました。手入力してください。';
+    }
+  });
+
+  // ---------- recurring form ----------
+  let rType = 'ex';
+  const rSegEx = document.getElementById('rSegEx'), rSegIn = document.getElementById('rSegIn');
+  function setRType(t) {
+    rType = t;
+    rSegEx.className = t === 'ex' ? 'on-ex' : '';
+    rSegIn.className = t === 'in' ? 'on-in' : '';
+    const sel = document.getElementById('rCat');
+    sel.innerHTML = '';
+    for (const c of (t === 'ex' ? EX_CATS : IN_CATS)) sel.add(new Option(c, c));
+  }
+  rSegEx.addEventListener('click', () => setRType('ex'));
+  rSegIn.addEventListener('click', () => setRType('in'));
+  {
+    const sel = document.getElementById('rDay');
+    for (let d = 1; d <= 31; d++) sel.add(new Option(`${d}日`, d));
+  }
+  document.getElementById('recForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = document.getElementById('rName').value.trim();
+    const amount = +document.getElementById('rAmount').value;
+    if (!name || !amount || amount <= 0) return;
+    db.recurring.push({ id: uid(), name, amount, type: rType, cat: document.getElementById('rCat').value, day: +document.getElementById('rDay').value });
+    save();
+    document.getElementById('rName').value = '';
+    document.getElementById('rAmount').value = '';
+    autoPost();
+    toast('定期収支を追加しました');
+    render();
+  });
+
+  // ---------- seed / clear ----------
+  document.getElementById('seedBtn').addEventListener('click', () => {
+    const items = [
+      ['食費', 500, 2500, 14], ['日用品', 300, 2000, 5], ['交通', 150, 1200, 6],
+      ['娯楽', 800, 4000, 3], ['医療', 900, 3000, 1], ['通信', 4980, 4980, 1]
+    ];
+    const base = new Date();
+    for (let m = 0; m < 3; m++) {
+      const d0 = new Date(base.getFullYear(), base.getMonth() - m, 1);
+      const ym = `${d0.getFullYear()}-${pad(d0.getMonth()+1)}`;
+      const days = daysInYM(ym);
+      const lim = m === 0 ? base.getDate() : days;
+      db.entries.push({ id: uid(), date: `${ym}-${pad(Math.min(25, lim))}`, type: 'in', amount: 230000, cat: '給与', memo: '給料（サンプル）' });
+      db.entries.push({ id: uid(), date: `${ym}-${pad(Math.min(27, lim))}`, type: 'ex', amount: 68000, cat: '住居', memo: '家賃（サンプル）' });
+      db.entries.push({ id: uid(), date: `${ym}-${pad(Math.min(10, lim))}`, type: 'ex', amount: 8000 + Math.floor(Math.random()*4000), cat: '光熱費', memo: '電気・ガス（サンプル）' });
+      for (const [cat, lo, hi, cnt] of items) {
+        for (let i = 0; i < cnt; i++) {
+          const day = 1 + Math.floor(Math.random() * lim);
+          const amt = lo + Math.floor(Math.random() * (hi - lo));
+          db.entries.push({ id: uid(), date: `${ym}-${pad(day)}`, type: 'ex', amount: amt, cat, memo: 'サンプル' });
+        }
+      }
+    }
+    save();
+    toast('サンプルデータを追加しました');
+    render();
+  });
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    if (!confirm('すべてのデータを削除します。よろしいですか？')) return;
+    db = { entries: [], recurring: [], posted: {} };
+    save();
+    toast('データを削除しました');
+    render();
+  });
+
+  // ---------- tooltip ----------
+  const tip = document.getElementById('tooltip');
+  function showTip(html, x, y) {
+    tip.innerHTML = html;
+    tip.style.display = 'block';
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    let left = x + 12, top = y - h - 10;
+    if (left + w > innerWidth - 8) left = x - w - 12;
+    if (top < 8) top = y + 14;
+    tip.style.left = Math.max(8, left) + 'px';
+    tip.style.top = top + 'px';
+  }
+  function hideTip() { tip.style.display = 'none'; }
+  document.addEventListener('pointerdown', e => { if (!e.target.closest('[data-tip]')) hideTip(); });
+
+  // ---------- aggregation ----------
+  const monthEntries = ym => db.entries.filter(e => ymOf(e.date) === ym);
+  function totals(ym) {
+    let inc = 0, exp = 0;
+    for (const e of monthEntries(ym)) e.type === 'in' ? inc += e.amount : exp += e.amount;
+    return { inc, exp, net: inc - exp };
+  }
+
+  // ---------- render: tiles ----------
+  function tilesHTML(t) {
+    const netCls = t.net > 0 ? 'pos' : t.net < 0 ? 'neg' : '';
+    const sign = t.net > 0 ? '+' : '';
+    return `
+      <div class="tile"><div class="k"><span class="sw" style="background:var(--in)"></span>収入</div><div class="v">${yen(t.inc)}</div></div>
+      <div class="tile"><div class="k"><span class="sw" style="background:var(--ex)"></span>支出</div><div class="v">${yen(t.exp)}</div></div>
+      <div class="tile"><div class="k">収支</div><div class="v ${netCls}">${sign}${yen(t.net)}</div></div>`;
+  }
+
+  // ---------- render: list ----------
+  function renderList() {
+    document.getElementById('listTiles').innerHTML = tilesHTML(totals(viewYM));
+    const box = document.getElementById('entryList');
+    const es = monthEntries(viewYM).sort((a, b) => b.date.localeCompare(a.date) || (a.id < b.id ? 1 : -1));
+    if (!es.length) {
+      box.innerHTML = '<div class="card empty">この月の記録はまだありません。<br>「入力」タブから記録するか、「定期」タブでサンプルデータを入れられます。</div>';
+      return;
+    }
+    box.innerHTML = '';
+    let curDate = '';
+    let group = null;
+    const wd = ['日','月','火','水','木','金','土'];
+    for (const e of es) {
+      if (e.date !== curDate) {
+        curDate = e.date;
+        group = document.createElement('div');
+        group.className = 'daygroup';
+        const d = new Date(e.date + 'T00:00:00');
+        group.innerHTML = `<div class="dh">${+e.date.slice(8,10)}日（${wd[d.getDay()]}）</div>`;
+        box.appendChild(group);
+      }
+      const row = document.createElement('div');
+      row.className = 'entry';
+      const color = e.type === 'in' ? 'var(--in)' : (CAT_COLOR[e.cat] || 'var(--muted)');
+      row.innerHTML = `
+        <span class="cdot" style="background:${color}"></span>
+        <div class="body">
+          <div class="cat">${esc(e.cat)}${e.auto ? '<span class="badge-auto">自動</span>' : ''}</div>
+          ${e.memo ? `<div class="memo">${esc(e.memo)}</div>` : ''}
+        </div>
+        <span class="amt ${e.type}">${e.type === 'in' ? '+' : '−'}${yen(e.amount)}</span>
+        <button class="del" aria-label="削除" title="削除">✕</button>`;
+      row.querySelector('.del').addEventListener('click', () => {
+        if (!confirm(`${e.cat} ${yen(e.amount)} を削除しますか？`)) return;
+        db.entries = db.entries.filter(x => x.id !== e.id);
+        save(); render();
+      });
+      group.appendChild(row);
+    }
+  }
+  const esc = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  // ---------- render: category chart (horizontal bars, direct labels) ----------
+  function renderCatChart() {
+    const box = document.getElementById('catChart');
+    const byCat = new Map();
+    for (const e of monthEntries(viewYM)) if (e.type === 'ex') byCat.set(e.cat, (byCat.get(e.cat) || 0) + e.amount);
+    const rows = [...byCat.entries()].sort((a, b) => b[1] - a[1]);
+    if (!rows.length) { box.innerHTML = '<div class="empty">この月の支出はまだありません</div>'; return; }
+
+    const W = 520, rowH = 34, labelW = 64, padR = 8, top = 4;
+    const H = top + rows.length * rowH + 8;
+    const max = rows[0][1];
+    const total = rows.reduce((s, r) => s + r[1], 0);
+    const plotW = W - labelW - padR - 100;
+    let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:340px" role="img" aria-label="カテゴリ別支出の棒グラフ">`;
+    rows.forEach(([cat, v], i) => {
+      const y = top + i * rowH;
+      const bw = Math.max(3, v / max * plotW);
+      const color = CAT_COLOR[cat] || 'var(--muted)';
+      const pct = Math.round(v / total * 100);
+      svg += `
+        <text x="${labelW - 8}" y="${y + 21}" text-anchor="end" font-size="12" fill="var(--ink2)" font-weight="600">${esc(cat)}</text>
+        <rect data-tip data-cat="${esc(cat)}" data-v="${v}" data-pct="${pct}"
+          x="${labelW}" y="${y + 7}" width="${bw}" height="18" rx="4" fill="${color}"/>
+        <text x="${labelW + bw + 7}" y="${y + 21}" font-size="12" fill="var(--ink)" font-variant-numeric="tabular-nums" font-weight="600">${yen(v)}</text>`;
+    });
+    svg += `<line x1="${labelW}" y1="${top}" x2="${labelW}" y2="${H - 4}" stroke="var(--baseline)" stroke-width="1"/></svg>`;
+    box.innerHTML = svg;
+    box.querySelectorAll('rect[data-tip]').forEach(r => {
+      const html = () => `<div class="t">${r.dataset.cat}</div><div class="r"><span class="sw" style="background:${CAT_COLOR[r.dataset.cat] || 'var(--muted)'}"></span>${yen(+r.dataset.v)}（支出の${r.dataset.pct}%）</div>`;
+      r.addEventListener('pointerenter', e => showTip(html(), e.clientX, e.clientY));
+      r.addEventListener('pointerdown', e => { showTip(html(), e.clientX, e.clientY); e.stopPropagation(); });
+      r.addEventListener('pointerleave', hideTip);
+    });
+  }
+
+  // ---------- render: trend chart (6 months, grouped bars) ----------
+  function renderTrendChart() {
+    const box = document.getElementById('trendChart');
+    const months = [];
+    for (let i = 5; i >= 0; i--) months.push(shiftYM(viewYM, -i));
+    const data = months.map(ym => ({ ym, ...totals(ym) }));
+    const max = Math.max(1, ...data.map(d => Math.max(d.inc, d.exp)));
+
+    const W = 520, H = 190, padL = 8, padR = 8, padT = 10, padB = 26;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    const slot = plotW / 6, bw = Math.min(26, (slot - 14) / 2);
+    let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:340px" role="img" aria-label="6ヶ月の収入と支出の推移">`;
+    // hairline gridlines (quarters)
+    for (let g = 1; g <= 3; g++) {
+      const y = padT + plotH - plotH * g / 4;
+      svg += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--line)" stroke-width="1"/>`;
+    }
+    data.forEach((d, i) => {
+      const cx = padL + slot * i + slot / 2;
+      const cur = d.ym === viewYM;
+      const bars = [[d.inc, 'var(--in)', -bw - 1, '収入'], [d.exp, 'var(--ex)', 1, '支出']];
+      for (const [v, color, off] of bars) {
+        const h = Math.max(v > 0 ? 3 : 0, v / max * plotH);
+        const y = padT + plotH - h;
+        svg += `<rect data-tip data-ym="${d.ym}" x="${(cx + off).toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="4" fill="${color}" ${cur ? '' : 'opacity="0.82"'}/>`;
+      }
+      svg += `<text x="${cx}" y="${H - 8}" text-anchor="middle" font-size="11" fill="${cur ? 'var(--ink)' : 'var(--muted)'}" font-weight="${cur ? '700' : '400'}">${+d.ym.slice(5,7)}月</text>`;
+    });
+    svg += `<line x1="${padL}" y1="${padT + plotH}" x2="${W - padR}" y2="${padT + plotH}" stroke="var(--baseline)" stroke-width="1"/></svg>`;
+    box.innerHTML = svg;
+    box.querySelectorAll('rect[data-tip]').forEach(r => {
+      const d = data.find(x => x.ym === r.dataset.ym);
+      const html = `<div class="t">${ymLabel(d.ym)}</div>
+        <div class="r"><span class="sw" style="background:var(--in)"></span>収入 ${yen(d.inc)}</div>
+        <div class="r"><span class="sw" style="background:var(--ex)"></span>支出 ${yen(d.exp)}</div>
+        <div class="r">収支 ${d.net >= 0 ? '+' : ''}${yen(d.net)}</div>`;
+      r.addEventListener('pointerenter', e => showTip(html, e.clientX, e.clientY));
+      r.addEventListener('pointerdown', e => { showTip(html, e.clientX, e.clientY); e.stopPropagation(); });
+      r.addEventListener('pointerleave', hideTip);
+    });
+  }
+
+  // ---------- render: recurring list ----------
+  function renderRec() {
+    const box = document.getElementById('recList');
+    if (!db.recurring.length) { box.innerHTML = '<div class="empty" style="padding:14px 8px;">まだ登録がありません</div>'; return; }
+    box.innerHTML = '';
+    for (const r of db.recurring) {
+      const row = document.createElement('div');
+      row.className = 'rec';
+      row.innerHTML = `
+        <span class="cdot" style="width:10px;height:10px;border-radius:50%;flex:none;background:${r.type === 'in' ? 'var(--in)' : 'var(--ex)'}"></span>
+        <div class="body">
+          <div class="name">${esc(r.name)}</div>
+          <div class="sub">毎月${r.day}日 ・ ${esc(r.cat)}</div>
+        </div>
+        <span class="amt" style="font-variant-numeric:tabular-nums;font-weight:700;color:${r.type === 'in' ? 'var(--in)' : 'var(--ink)'}">${r.type === 'in' ? '+' : '−'}${yen(r.amount)}</span>
+        <button class="del" aria-label="削除" title="削除">✕</button>`;
+      row.querySelector('.del').addEventListener('click', () => {
+        if (!confirm(`「${r.name}」を削除しますか？（記録済みの分は残ります）`)) return;
+        db.recurring = db.recurring.filter(x => x.id !== r.id);
+        save(); render();
+      });
+      box.appendChild(row);
+    }
+  }
+
+  // ---------- render all ----------
+  function render() {
+    document.querySelectorAll('[data-mlabel]').forEach(el => el.textContent = ymLabel(viewYM));
+    renderList();
+    document.getElementById('statTiles').innerHTML = tilesHTML(totals(viewYM));
+    renderCatChart();
+    renderTrendChart();
+    renderRec();
+  }
+
+  // ---------- init ----------
+  setType('ex');
+  setRType('ex');
+  autoPost();
+  render();
+})();
+</script>
